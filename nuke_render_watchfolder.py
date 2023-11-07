@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 from logger_push import logger
 import re
-# import requests
+import requests
 import subprocess
 
 is_scanning = False
@@ -89,7 +89,6 @@ if __name__ == '__main__':
             logger.info(f'{new_file}')
             try:
                 logger.info(f'Trigger file: {new_file}')
-                # logger.info(f'Render Submission: {new_file}')
                 new_render = read_render_submission(new_file)
                 logger.info(f'new_render: {new_render}')
                 if 'lucid://' in new_render[0]:
@@ -103,53 +102,37 @@ if __name__ == '__main__':
                 script_name = os.path.basename(script_path)
                 logger.info(f'script_name: {script_name}')
                 if len(new_render) >= 3:
-                    renderShell = f'"{nukepath}" -F {new_render[1]}-{new_render[2]} {nukeflags} "{script_path}"'
+                    if new_render[5] == 'True':
+                        renderShell = f'"{nukepath}" -F {new_render[1]}-{new_render[2]} {nukeflags} "{script_path}"'
+                    else:
+                        renderShell = f'"{nukepath}" -X {new_render[6]} -F {new_render[1]}-{new_render[2]} {nukeflags} "{script_path}"'
                     renderProcess = subprocess.Popen(renderShell, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, text=True)
-                    try:
-                        while True:
-                            output = renderProcess.stdout.readline()
-                            if output:
-                                received_output = output.strip()
-                                logger.info(f'{received_output}')
-                            elif output == '' and renderProcess.poll() is not None:
-                                break
-                            else:
-                                time.sleep(0.1)
-
-                    except Exception as e:
-                        logger.error(f'An error occurred: {e}')
-                    finally:
-                        renderProcess.wait()
-                        remaining_output = renderProcess.stdout.read()
-                        if remaining_output:
-                            logger.info(f'{remaining_output}')
-
                     moveShell = f'mv -f {new_file} /Volumes/sandwich-post/assets/render_queue/_archive/'
                     subprocess.Popen(moveShell, shell=True)
                 else:
                     renderShell = f'"{nukepath}" {nukeflags} "{script_path}"'
                     renderProcess = subprocess.Popen(renderShell, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, text=True)
-                    try:
-                        while True:
-                            output = renderProcess.stdout.readline()
-                            if output:
-                                received_output = output.strip()
-                                logger.info(f'{received_output}')
-                            elif output == '' and renderProcess.poll() is not None:
-                                break
-                            else:
-                                time.sleep(0.1)
+                try:
+                    while True:
+                        output = renderProcess.stdout.readline()
+                        if output:
+                            received_output = output.strip()
+                            logger.info(f'{received_output}')
+                        elif output == '' and renderProcess.poll() is not None:
+                            break
+                        else:
+                            time.sleep(0.1)
 
-                    except Exception as e:
-                        logger.error(f'An error occurred: {e}')
-                    finally:
-                        renderProcess.wait()
-                        remaining_output = renderProcess.stdout.read()
-                        if remaining_output:
-                            logger.info(f'{remaining_output}')
+                except Exception as e:
+                    logger.error(f'An error occurred: {e}')
+                finally:
+                    renderProcess.wait()
+                    remaining_output = renderProcess.stdout.read()
+                    if remaining_output:
+                        logger.info(f'{remaining_output}')
 
-                    moveShell = f'mv -f {new_file} /Volumes/sandwich-post/assets/render_queue/_archive/'
-                    subprocess.Popen(moveShell, shell=True)
+                moveShell = f'mv -f {new_file} /Volumes/sandwich-post/assets/render_queue/_archive/'
+                subprocess.Popen(moveShell, shell=True)
 
             except:
                 logger.info(f'Failed to open {new_file}')
