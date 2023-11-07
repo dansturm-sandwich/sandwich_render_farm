@@ -16,6 +16,11 @@ nukeflags = '-xi'
 
 airtableKey = 'Bearer patul5beqSTTQgYos.f089965f96138d6177ea3f9d94f66c41be588ea68927e8e6cfbba9bac205a3fd'
 
+now = datetime.now()
+
+subNotes_timestamp = now.strftime("%y%m%d %I:%M %p")
+
+
 def scantree(path):
     try:
         with os.scandir(path) as it:
@@ -176,7 +181,7 @@ if __name__ == '__main__':
                     renderProcess = subprocess.Popen(renderShell, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, text=True)
                     moveShell = f'mv -f {new_file} /Volumes/sandwich-post/assets/render_queue/_archive/'
                     subprocess.Popen(moveShell, shell=True)
-                    subNotes = f'{new_render[3]}:\n{new_render[7]}'
+                    subNotes = f'{new_render[3]}:\n{subNotes_timestamp}\n{new_render[7]}'
                     logger.info(f'submission notes for airtable: {subNotes}')
                     update_airtable(new_file, subNotes)
                 else:
