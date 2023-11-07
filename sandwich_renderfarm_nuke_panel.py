@@ -9,7 +9,7 @@ def sandwich_render_panel():
 
     now = datetime.now()
 
-    date_time_stamp = now.strftime("%d%m%y_%H%M%S")
+    date_time_stamp = now.strftime("%y%m%d_%H%M%S")
 
     script_path = nuke.root().name()
     try:
