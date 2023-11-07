@@ -5,6 +5,7 @@ import time
 from datetime import datetime
 from logger_push import logger
 import re
+import json
 import requests
 import subprocess
 
@@ -13,6 +14,7 @@ is_scanning = False
 nukepath = '/Applications/Nuke14.0v4/Nuke14.0v4.app/Contents/MacOS/Nuke14.0'
 nukeflags = '-xi'
 
+airtableKey = 'Bearer patul5beqSTTQgYos.f089965f96138d6177ea3f9d94f66c41be588ea68927e8e6cfbba9bac205a3fd'
 
 def scantree(path):
     try:
@@ -47,6 +49,71 @@ def link_to_path(sourceURL):
     pathLucid = responseLucid['path']
     fullpathLucid = f'/Volumes/sandwich-post/{pathLucid}'
     return fullpathLucid
+
+
+def update_airtable(fullpath, subNotes):
+    # get Task Name for Render from filename
+    fileBase = os.path.basename(fullpath)
+    fileNameOnly = os.path.basename(os.path.splitext(fullpath)[0])
+    try:
+        taskNameForRender = re.search(".+?(?=_v)", fileNameOnly)[0]
+    except:
+        pass
+
+    logger.info(f'File basename: {fileBase}')
+    logger.info(f'File name only: {fileNameOnly}')
+    logger.info(f'Task name for render: {taskNameForRender}')
+
+
+    # get task ID
+    getIDurl = "https://api.airtable.com/v0/app0fB7mKrrIhFHNs/Tasks?fields%5B%5D=Task%20Name&filterByFormula=%7BTask+Name+for+Render%7D+%3D+'" + taskNameForRender + "'"
+    airHeaders = {'Authorization': airtableKey}
+
+    try:
+        responseAirtable = requests.get(getIDurl, headers=airHeaders).json()
+        airRecordsData = responseAirtable['records']
+        airRecordID = airRecordsData[0]['id']
+        logger.info(f'airRecordsData: {airRecordsData}')
+        logger.info(f'Airtable Record ID: {airRecordID}')
+
+        getNOTESurl = f'https://api.airtable.com/v0/app0fB7mKrrIhFHNs/Tasks/{airRecordID}'
+        logger.info(f'getNOTESurl: {getNOTESurl}')
+        responseNotes = requests.get(getNOTESurl, headers=airHeaders).json()
+        logger.info(f'responseNotes: {responseNotes}')
+        # airNotesData = responseNotes['records']
+        # logger.info(f'airNotesData: {airNotesData}')
+
+        currentNotes = responseNotes['fields']['Render Submission Notes']
+        logger.info(f'current notes: {currentNotes}')
+
+
+        udpateRecordURL = "https://api.airtable.com/v0/app0fB7mKrrIhFHNs/Tasks"
+        updateAirHeaders = {
+            'Authorization': airtableKey,
+            'Content-Type': 'application/json'
+        }
+
+        newNotes = f'{subNotes}\n\n\n{currentNotes}'.strip()
+        logger.info(f'new notes: {newNotes}')
+        
+        # update the record
+        updateAirData = {
+            "records": [
+                {
+                    "id": airRecordID,
+                    "fields": {
+                        "Render Submission Notes": newNotes
+                    }
+                }
+            ]
+        }
+        r = requests.request("PATCH", udpateRecordURL, headers=updateAirHeaders, data=json.dumps(updateAirData))
+        # print(r.text)
+        logger.info(f'Airtable update response: {r.text}')
+    except:
+        logger.error(f'Error updating Airtable: {e}')
+
+
 
 
 if __name__ == '__main__':
@@ -109,9 +176,14 @@ if __name__ == '__main__':
                     renderProcess = subprocess.Popen(renderShell, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, text=True)
                     moveShell = f'mv -f {new_file} /Volumes/sandwich-post/assets/render_queue/_archive/'
                     subprocess.Popen(moveShell, shell=True)
+                    subNotes = f'{new_render[3]}:\n{new_render[7]}'
+                    logger.info(f'submission notes for airtable: {subNotes}')
+                    update_airtable(new_file, subNotes)
                 else:
                     renderShell = f'"{nukepath}" {nukeflags} "{script_path}"'
                     renderProcess = subprocess.Popen(renderShell, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, text=True)
+                    moveShell = f'mv -f {new_file} /Volumes/sandwich-post/assets/render_queue/_archive/'
+                    subprocess.Popen(moveShell, shell=True)
                 try:
                     while True:
                         output = renderProcess.stdout.readline()
@@ -130,9 +202,6 @@ if __name__ == '__main__':
                     remaining_output = renderProcess.stdout.read()
                     if remaining_output:
                         logger.info(f'{remaining_output}')
-
-                moveShell = f'mv -f {new_file} /Volumes/sandwich-post/assets/render_queue/_archive/'
-                subprocess.Popen(moveShell, shell=True)
 
             except:
                 logger.info(f'Failed to open {new_file}')
