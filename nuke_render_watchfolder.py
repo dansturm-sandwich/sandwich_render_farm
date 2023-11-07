@@ -5,12 +5,12 @@ import time
 from datetime import datetime
 from logger_push import logger
 import re
-import requests
+# import requests
 import subprocess
 
 is_scanning = False
 
-nukepath = '/Applications/Nuke14.0v5/Nuke14.0v5.app/Contents/MacOS/Nuke14.0'
+nukepath = '/Applications/Nuke14.0v4/Nuke14.0v4.app/Contents/MacOS/Nuke14.0'
 nukeflags = '-xi'
 
 
@@ -19,7 +19,7 @@ def scantree(path):
         with os.scandir(path) as it:
             for entry in it:
                 if not entry.name.startswith('.') and entry.is_file(follow_symlinks=False):
-                    # logger.info(entry.path)
+                    logger.info(entry.path)
                     yield entry
             else:
                 # logger.info(entry.path)
@@ -86,10 +86,10 @@ if __name__ == '__main__':
                 pass
 
         for new_file in current_seen:
-            # logger.info(f'{new_file}')
+            logger.info(f'{new_file}')
             try:
                 logger.info(f'Trigger file: {new_file}')
-                logger.info(f'Render Submission: {new_file}')
+                # logger.info(f'Render Submission: {new_file}')
                 new_render = read_render_submission(new_file)
                 logger.info(f'new_render: {new_render}')
                 if 'lucid://' in new_render[0]:
@@ -104,16 +104,53 @@ if __name__ == '__main__':
                 logger.info(f'script_name: {script_name}')
                 if len(new_render) >= 3:
                     renderShell = f'"{nukepath}" -F {new_render[1]}-{new_render[2]} {nukeflags} "{script_path}"'
-                    subprocess.Popen(renderShell, shell=True)
+                    renderProcess = subprocess.Popen(renderShell, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, text=True)
+                    try:
+                        while True:
+                            output = renderProcess.stdout.readline()
+                            if output:
+                                received_output = output.strip()
+                                logger.info(f'{received_output}')
+                            elif output == '' and renderProcess.poll() is not None:
+                                break
+                            else:
+                                time.sleep(0.1)
+
+                    except Exception as e:
+                        logger.error(f'An error occurred: {e}')
+                    finally:
+                        renderProcess.wait()
+                        remaining_output = renderProcess.stdout.read()
+                        if remaining_output:
+                            logger.info(f'{remaining_output}')
+
                     moveShell = f'mv -f {new_file} /Volumes/sandwich-post/assets/render_queue/_archive/'
                     subprocess.Popen(moveShell, shell=True)
                 else:
                     renderShell = f'"{nukepath}" {nukeflags} "{script_path}"'
-                    subprocess.Popen(renderShell, shell=True)
+                    renderProcess = subprocess.Popen(renderShell, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, text=True)
+                    try:
+                        while True:
+                            output = renderProcess.stdout.readline()
+                            if output:
+                                received_output = output.strip()
+                                logger.info(f'{received_output}')
+                            elif output == '' and renderProcess.poll() is not None:
+                                break
+                            else:
+                                time.sleep(0.1)
+
+                    except Exception as e:
+                        logger.error(f'An error occurred: {e}')
+                    finally:
+                        renderProcess.wait()
+                        remaining_output = renderProcess.stdout.read()
+                        if remaining_output:
+                            logger.info(f'{remaining_output}')
+
                     moveShell = f'mv -f {new_file} /Volumes/sandwich-post/assets/render_queue/_archive/'
                     subprocess.Popen(moveShell, shell=True)
-                # new_render_listed = '\n'.join(new_render)
-                # print(f'Render Details: \n{new_render_listed}')
+
             except:
                 logger.info(f'Failed to open {new_file}')
                 pass
