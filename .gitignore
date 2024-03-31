@@ -1,2 +1,4 @@
 .DS_Store
 _scratchpad/
+/__pycache__
+/_archive
