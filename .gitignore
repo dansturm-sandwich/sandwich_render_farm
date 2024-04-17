@@ -2,3 +2,5 @@
 _scratchpad/
 /__pycache__
 /_archive
+logger_push.py
+nuke_render_watchfolder.py
